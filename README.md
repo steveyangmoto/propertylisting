@@ -1,0 +1,170 @@
+# Property Search (Android)
+
+A native Android app, written in Kotlin with Jetpack Compose, for searching property listings
+from the reference listings API in `server/`.
+
+You can search by city, keyword, price range, minimum bedrooms and an optional target budget.
+Results show price, address, beds, baths and square footage, and the next page loads as you
+scroll. The app shows a loading state while a request is in flight, an error state with retry
+when it fails, and a message when nothing matches. Copies of the same property listed by more
+than one MLS source are merged into one card by default.
+
+## Requirements
+
+- **Python 3**, for the server. It only uses the standard library, so there's nothing to install.
+- **JDK 17 or newer.** The JDK bundled with Android Studio works.
+- **Android SDK** with platform 36. Installing Android Studio sets this up. The scripts find the
+  SDK through `ANDROID_HOME`, `local.properties`, or the default location
+  (`~/Library/Android/sdk` on macOS).
+- **An Android emulator (AVD), or a phone** with USB debugging enabled.
+
+## Quick start
+
+From the project root:
+
+```bash
+./run.sh
+```
+
+This one command:
+
+1. Starts the listings server on port 8000, unless one is already running.
+2. Starts your first emulator if no device is connected, and waits for it to boot.
+3. Builds and installs the app, pointing it at the right server address.
+4. Launches the app.
+
+The server keeps running in the background after the script exits. Stop it with
+`./run.sh stop-server`.
+
+## Running the server manually
+
+```bash
+cd server
+python3 server.py          # listens on http://0.0.0.0:8000
+python3 server.py 9000     # or on another port
+```
+
+Run it from inside `server/`, because `server.py` loads `data.json` from the current directory.
+To check that it's up:
+
+```bash
+curl "http://localhost:8000/listings/search?city=Reston"
+```
+
+## Running the app
+
+### Emulator
+
+The emulator can't reach your Mac through `localhost`. It uses the special address `10.0.2.2`
+instead, and the app is built with `http://10.0.2.2:8000` by default.
+
+```bash
+./run.sh
+```
+
+Or open the project in Android Studio and press **Run**.
+
+### Physical device
+
+The phone and your computer must be on the same Wi-Fi network. Plug the phone in with USB
+debugging enabled, then run:
+
+```bash
+./run.sh                          # uses this machine's LAN IP automatically
+./run.sh --host 192.168.1.20      # or set the IP yourself
+```
+
+Without the script, pass the address to Gradle:
+
+```bash
+./gradlew installDebug -PapiBaseUrl=http://192.168.1.20:8000
+```
+
+## Testing
+
+```bash
+./run.sh test     # unit tests
+./run.sh all      # unit tests, then start the server and launch the app
+```
+
+The unit tests cover form validation, how query parameters are built, merging duplicate
+listings, the HTTP client against a mock server (success, empty results, 400, 5xx, invalid JSON
+and an unreachable server), and the ViewModel's loading, error, retry and paging states.
+If tests fail, the HTML report is at `app/build/reports/tests/testDebugUnitTest/index.html`.
+
+### Things to try manually
+
+| Try | You should see |
+|---|---|
+| Tap **Search** with every field empty | All 12 listings, ranked by relevance |
+| Min price `400000`, max price `550000` | 8 listings |
+| City `Atlantis` | The "No listings match" message |
+| Min price `600000`, max price `500000` | An error on the max price field, with no request sent |
+| Stop the server (`./run.sh stop-server`), then search | An error screen with **Try again** |
+| Scroll to the bottom of an unfiltered search | Page 2 loads automatically, then "End of results" |
+| Tap a listing | It expands to show the description, amenities, listing date and source |
+
+## Script reference
+
+```
+./run.sh [run|test|all|server|stop-server] [--host <ip>] [--port <port>] [--avd <name>]
+```
+
+| Command | What it does |
+|---|---|
+| `run` (default) | Start the server if needed, start an emulator if needed, install and launch the app |
+| `test` | Run the unit tests |
+| `all` | `test`, then `run` |
+| `server` | Only start the server |
+| `stop-server` | Stop a server that the script started |
+
+| Option | What it sets |
+|---|---|
+| `--host <ip>` | The server address as seen from the device. Defaults to `10.0.2.2` on an emulator and your LAN IP on a phone. |
+| `--port <port>` | The server port. Defaults to `8000`. |
+| `--avd <name>` | Which emulator to start when no device is connected |
+
+If several devices are connected, set `ANDROID_SERIAL` to choose one. Logs go to
+`/tmp/property-search-server.log` for the server and `/tmp/property-search-emulator.log` for
+the emulator.
+
+## Packaging
+
+```bash
+./package.sh            # creates dist/PropertySearch-<date>.zip, with README.pdf included
+./package.sh --no-pdf   # the same, without the PDF
+```
+
+The zip contains everything git would track. Build output, `.gradle/` and `local.properties`
+are left out. Making `README.pdf` needs Node.js (it runs `marked` through `npx`) and Google
+Chrome or Chromium, which prints the PDF. Set `CHROME=/path/to/chrome` if Chrome is installed
+somewhere unusual.
+
+## Project layout
+
+```
+server/                      Reference API (server.py and data.json)
+app/src/main/java/com/example/propertylisting/
+  data/Models.kt             API response types
+  data/SearchQuery.kt        Validated search parameters and how they become query parameters
+  data/ListingsService.kt    HTTP client (OkHttp + kotlinx.serialization), cancellation, error types
+  ui/SearchForm.kt           Raw form input and validation
+  ui/SearchViewModel.kt      Search state (idle, loading, error, loaded), paging and retry
+  ui/ListingGroup.kt         Merging of duplicate listings
+  ui/SearchScreen.kt         Search form, list, and loading, error and empty states
+  ui/ListingCard.kt          A single listing card
+  ui/Scrollbar.kt            Scrollbar drawn over the list
+app/src/test/...             Unit tests
+run.sh                       Script to start the server, build, test and launch
+package.sh                   Script to build the distributable zip, including README.pdf
+```
+
+## Troubleshooting
+
+- **"Couldn't reach the server" in the app.** Check that the server is running
+  (`./run.sh server`). On a phone, also check that it's on the same Wi-Fi network and that your
+  Mac's firewall allows incoming connections to Python.
+- **The port is already in use.** Something else is listening on port 8000. Use
+  `./run.sh --port 9000`.
+- **"Android SDK not found".** Set `ANDROID_HOME`, or create `local.properties` containing
+  `sdk.dir=/path/to/sdk`.

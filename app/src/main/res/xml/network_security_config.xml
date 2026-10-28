@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The reference server is plain HTTP on the emulator host alias or a LAN IP, neither of which
+     can be enumerated ahead of time, so cleartext is permitted app-wide. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
