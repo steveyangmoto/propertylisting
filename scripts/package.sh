@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-#
-# Package the project into dist/PropertySearch-<date>.zip, with README.pdf generated from README.md.
-#
-#   ./package.sh             Build the zip
-#   ./package.sh --no-pdf    Build the zip without README.pdf
-#
-# Files are selected with git, so anything in .gitignore (build output, .gradle, local.properties)
-# is left out. Generating the PDF needs Node.js (for npx) and Google Chrome or Chromium.
+# Package the project into a zip, with README.pdf generated from README.md.
 
-set -euo pipefail
+source "$(dirname "$0")/lib/common.sh"
 
-cd "$(dirname "$0")"
+usage() {
+    cat <<'EOF'
+Package the project into dist/PropertySearch-<date>.zip, with README.pdf generated from README.md.
+
+  scripts/package.sh             Build the zip
+  scripts/package.sh --no-pdf    Build the zip without README.pdf
+
+Files are selected with git, so anything in .gitignore (build output, .gradle, local.properties)
+is left out. Generating the PDF needs Node.js (for npx) and Google Chrome or Chromium.
+EOF
+}
 
 NAME="PropertySearch"
 WITH_PDF=1
@@ -19,12 +22,9 @@ MARKED_VERSION="16.4.1"
 case "${1:-}" in
     "") ;;
     --no-pdf) WITH_PDF=0 ;;
-    -h|--help) sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "Unknown argument: $1 (see ./package.sh --help)" >&2; exit 1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $1 (see scripts/package.sh --help)" >&2; exit 1 ;;
 esac
-
-info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
-fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 find_chrome() {
     local candidate

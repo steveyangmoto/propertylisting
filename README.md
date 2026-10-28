@@ -25,7 +25,7 @@ than one MLS source are merged into one card by default.
 From the project root:
 
 ```bash
-./run.sh
+scripts/run.sh
 ```
 
 This one command:
@@ -36,9 +36,19 @@ This one command:
 4. Launches the app.
 
 The server keeps running in the background after the script exits. Stop it with
-`./run.sh stop-server`.
+`scripts/server.sh stop`.
 
 ## Running the server manually
+
+To run it in the background with the helper script:
+
+```bash
+scripts/server.sh start               # or: scripts/server.sh start --port 9000
+scripts/server.sh status
+scripts/server.sh stop
+```
+
+Or run it in the foreground yourself, and stop it with Ctrl+C:
 
 ```bash
 cd server
@@ -61,7 +71,7 @@ The emulator can't reach your Mac through `localhost`. It uses the special addre
 instead, and the app is built with `http://10.0.2.2:8000` by default.
 
 ```bash
-./run.sh
+scripts/run.sh
 ```
 
 Or open the project in Android Studio and press **Run**.
@@ -72,8 +82,8 @@ The phone and your computer must be on the same Wi-Fi network. Plug the phone in
 debugging enabled, then run:
 
 ```bash
-./run.sh                          # uses this machine's LAN IP automatically
-./run.sh --host 192.168.1.20      # or set the IP yourself
+scripts/run.sh                          # uses this machine's LAN IP automatically
+scripts/run.sh --host 192.168.1.20      # or set the IP yourself
 ```
 
 Without the script, pass the address to Gradle:
@@ -89,11 +99,11 @@ rebuild the app whenever you change the port.
 
 ```bash
 # The script starts the server on 9000 if it isn't already running, then builds the app for it
-./run.sh --port 9000
+scripts/run.sh --port 9000
 
 # Or start the server yourself first, then run the script
 cd server && python3 server.py 9000
-./run.sh --port 9000
+scripts/run.sh --port 9000
 
 # Without the script
 ./gradlew installDebug -PapiBaseUrl=http://10.0.2.2:9000        # emulator
@@ -113,8 +123,8 @@ If the port changes and the app isn't rebuilt, it keeps calling the old port and
 ## Testing
 
 ```bash
-./run.sh test     # unit tests
-./run.sh all      # unit tests, then start the server and launch the app
+scripts/run.sh test     # unit tests
+scripts/run.sh all      # unit tests, then start the server and launch the app
 ```
 
 The unit tests cover form validation, how query parameters are built, merging duplicate
@@ -130,14 +140,19 @@ If tests fail, the HTML report is at `app/build/reports/tests/testDebugUnitTest/
 | Min price `400000`, max price `550000` | 8 listings |
 | City `Atlantis` | The "No listings match" message |
 | Min price `600000`, max price `500000` | An error on the max price field, with no request sent |
-| Stop the server (`./run.sh stop-server`), then search | An error screen with **Try again** |
+| Stop the server (`scripts/server.sh stop`), then search | An error screen with **Try again** |
 | Scroll to the bottom of an unfiltered search | Page 2 loads automatically, then "End of results" |
 | Tap a listing | It expands to show the description, amenities, listing date and source |
 
 ## Script reference
 
+All scripts live in `scripts/`, can be run from any directory, and print their usage with
+`--help`.
+
+### `scripts/run.sh`: the app
+
 ```
-./run.sh [run|test|all|server|stop-server] [--host <ip>] [--port <port>] [--avd <name>]
+scripts/run.sh [run|test|all] [--host <ip>] [--port <port>] [--avd <name>]
 ```
 
 | Command | What it does |
@@ -145,8 +160,6 @@ If tests fail, the HTML report is at `app/build/reports/tests/testDebugUnitTest/
 | `run` (default) | Start the server if needed, start an emulator if needed, install and launch the app |
 | `test` | Run the unit tests |
 | `all` | `test`, then `run` |
-| `server` | Only start the server |
-| `stop-server` | Stop a server that the script started |
 
 | Option | What it sets |
 |---|---|
@@ -154,15 +167,36 @@ If tests fail, the HTML report is at `app/build/reports/tests/testDebugUnitTest/
 | `--port <port>` | The server port. Defaults to `8000`. |
 | `--avd <name>` | Which emulator to start when no device is connected |
 
-If several devices are connected, set `ANDROID_SERIAL` to choose one. Logs go to
-`/tmp/property-search-server.log` for the server and `/tmp/property-search-emulator.log` for
-the emulator.
+If several devices are connected, set `ANDROID_SERIAL` to choose one. The emulator logs to
+`/tmp/property-search-emulator.log`.
+
+### `scripts/server.sh`: the listings server
+
+```
+scripts/server.sh [start|stop|status] [--port <port>]
+```
+
+| Command | What it does |
+|---|---|
+| `start` | Start the server in the background, unless one is already running |
+| `stop` | Stop a server that these scripts started |
+| `status` | Report whether a server is responding on the port |
+
+The server logs to `/tmp/property-search-server.log`.
+
+### `scripts/package.sh`: the zip
+
+```
+scripts/package.sh [--no-pdf]
+```
+
+See [Packaging](#packaging).
 
 ## Packaging
 
 ```bash
-./package.sh            # creates dist/PropertySearch-<date>.zip, with README.pdf included
-./package.sh --no-pdf   # the same, without the PDF
+scripts/package.sh            # creates dist/PropertySearch-<date>.zip, with README.pdf included
+scripts/package.sh --no-pdf   # the same, without the PDF
 ```
 
 The zip contains everything git would track. Build output, `.gradle/` and `local.properties`
@@ -185,16 +219,20 @@ app/src/main/java/com/example/propertylisting/
   ui/ListingCard.kt          A single listing card
   ui/Scrollbar.kt            Scrollbar drawn over the list
 app/src/test/...             Unit tests
-run.sh                       Script to start the server, build, test and launch
-package.sh                   Script to build the distributable zip, including README.pdf
+scripts/
+  run.sh                     Build, test and launch the app (starts the server if needed)
+  server.sh                  Start, stop or check the listings server
+  package.sh                 Build the distributable zip, including README.pdf
+  lib/common.sh              Shared helpers: logging, project root, Android SDK lookup
+  lib/server.sh              Shared server start/stop logic used by run.sh and server.sh
 ```
 
 ## Troubleshooting
 
 - **"Couldn't reach the server" in the app.** Check that the server is running
-  (`./run.sh server`). On a phone, also check that it's on the same Wi-Fi network and that your
+  (`scripts/server.sh status`, or `scripts/server.sh start` to start it). On a phone, also check that it's on the same Wi-Fi network and that your
   Mac's firewall allows incoming connections to Python.
 - **The port is already in use.** Something else is listening on port 8000. Use
-  `./run.sh --port 9000`.
+  `scripts/run.sh --port 9000`.
 - **"Android SDK not found".** Set `ANDROID_HOME`, or create `local.properties` containing
   `sdk.dir=/path/to/sdk`.
