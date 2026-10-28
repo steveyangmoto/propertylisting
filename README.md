@@ -1,5 +1,7 @@
 # Property Search (Android)
 
+**Author:** Steve Yang
+
 A native Android app, written in Kotlin with Jetpack Compose, for searching property listings
 from the reference listings API in `server/`.
 
@@ -79,6 +81,34 @@ Without the script, pass the address to Gradle:
 ```bash
 ./gradlew installDebug -PapiBaseUrl=http://192.168.1.20:8000
 ```
+
+### Using a different port
+
+The app and the server must use the same port. The server address is built into the app, so
+rebuild the app whenever you change the port.
+
+```bash
+# The script starts the server on 9000 if it isn't already running, then builds the app for it
+./run.sh --port 9000
+
+# Or start the server yourself first, then run the script
+cd server && python3 server.py 9000
+./run.sh --port 9000
+
+# Without the script
+./gradlew installDebug -PapiBaseUrl=http://10.0.2.2:9000        # emulator
+./gradlew installDebug -PapiBaseUrl=http://192.168.x.x:9000     # physical phone
+```
+
+When you press Run in Android Studio, Gradle doesn't receive `-P` values. Change the default
+in `gradle.properties` instead:
+
+```properties
+apiBaseUrl=http://10.0.2.2:9000
+```
+
+If the port changes and the app isn't rebuilt, it keeps calling the old port and shows
+"Couldn't reach the server".
 
 ## Testing
 
